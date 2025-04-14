@@ -6,17 +6,19 @@ from datetime import datetime
 
 Base = declarative_base()
 
+# ------------------ MODELOS ------------------
+
 class Usuario(Base):
     __tablename__ = 'usuarios'
 
     id_usuario = Column(Integer, primary_key=True, autoincrement=True)
     nombre_usuario = Column(String(50), nullable=False, unique=True)
     contraseña = Column(String(100), nullable=False)
-    rol = Column(String(20), nullable=False, default='colaborador')
-    correo_electronico = Column(String(100), nullable=False)  # <- Lo marcamos como obligatorio
+    rol = Column(String(20), nullable=False, default='usuario')  # 'usuario' o 'administrador'
+    correo_electronico = Column(String(100), nullable=False)
 
     def __repr__(self):
-        return f"<Usuario(nombre_usuario='{self.nombre_usuario}', correo='{self.correo_electronico}')>"
+        return f"<Usuario(nombre_usuario='{self.nombre_usuario}', correo='{self.correo_electronico}', rol='{self.rol}')>"
 
 
 class Proyecto(Base):
@@ -42,11 +44,11 @@ class Tarea(Base):
     descripcion = Column(String(255), nullable=False)
     fecha_vencimiento = Column(Date)
     id_usuario_asignado = Column(Integer, ForeignKey('usuarios.id_usuario'))
-    estado = Column(String(20), nullable=False, default='pendiente')
-    prioridad = Column(String(10), nullable=False, default='media')
+    estado = Column(String(20), nullable=False, default='pendiente')  # 'pendiente', 'en progreso', 'completada'
+    prioridad = Column(String(10), nullable=False, default='media')  # 'baja', 'media', 'alta'
 
     def __repr__(self):
-        return f"<Tarea(descripcion='{self.descripcion}')>"
+        return f"<Tarea(descripcion='{self.descripcion}', estado='{self.estado}', prioridad='{self.prioridad}')>"
 
 
 class MiembroProyecto(Base):
@@ -54,13 +56,14 @@ class MiembroProyecto(Base):
 
     id_proyecto = Column(Integer, ForeignKey('proyectos.id_proyecto'), primary_key=True)
     id_usuario = Column(Integer, ForeignKey('usuarios.id_usuario'), primary_key=True)
-    rol = Column(String(20), nullable=False, default='colaborador')
+    rol = Column(String(20), nullable=False, default='colaborador')  # puede ser 'colaborador', 'responsable', etc.
 
     def __repr__(self):
         return f"<MiembroProyecto(id_proyecto={self.id_proyecto}, id_usuario={self.id_usuario}, rol='{self.rol}')>"
 
 
-# Configuración de la base de datos MySQL
+# ------------------ CONFIGURACIÓN BD ------------------
+
 DB_HOST = 'localhost'
 DB_NAME = 'gestion_proyectos_db'
 DB_USER = 'root'
@@ -70,6 +73,7 @@ DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NA
 
 engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(engine)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
@@ -80,25 +84,32 @@ def get_db():
         db.close()
 
 
-# Prueba de inserción (solo si ejecutas directamente este archivo)
-if __name__ == "__main__":
+# ------------------ FUNCIONES ------------------
+
+def verificar_contraseña(usuario, contraseña_ingresada):
+    return bcrypt.checkpw(contraseña_ingresada.encode('utf-8'), usuario.contraseña.encode('utf-8'))
+
+
+def crear_usuario(db, nombre_usuario, contraseña, rol, correo_electronico):
+    hashed_password = bcrypt.hashpw(contraseña.encode('utf-8'), bcrypt.gensalt())
+    nuevo_usuario = Usuario(
+        nombre_usuario=nombre_usuario,
+        contraseña=hashed_password.decode('utf-8'),
+        rol=rol,
+        correo_electronico=correo_electronico
+    )
+    db.add(nuevo_usuario)
+    db.commit()
+    db.refresh(nuevo_usuario)
+    return nuevo_usuario
+
+
+def prueba_insercion():
     db = SessionLocal()
-
     try:
-        # Crear un nuevo usuario con correo electrónico
-        password_plain = "miclave123"
-        hashed_password = bcrypt.hashpw(password_plain.encode('utf-8'), bcrypt.gensalt())
-
-        nuevo_usuario = Usuario(
-            nombre_usuario="juan.perez",
-            contraseña=hashed_password.decode('utf-8'),
-            rol="administrador",
-            correo_electronico="juan.perez@ejemplo.com"  # <- Se añadió el correo aquí
-        )
-        db.add(nuevo_usuario)
-        db.commit()
-        db.refresh(nuevo_usuario)
-        print("Usuario creado:", nuevo_usuario)
+        # Crear usuario
+        nuevo_usuario = crear_usuario(db, "juan.perez", "miclave123", "administrador", "juan.perez@ejemplo.com")
+        print(f"Usuario creado: {nuevo_usuario}")
 
         # Crear proyecto
         fecha_inicio = datetime.strptime("2025-04-15", "%Y-%m-%d").date()
@@ -129,7 +140,7 @@ if __name__ == "__main__":
         db.refresh(nueva_tarea)
         print("Tarea creada:", nueva_tarea)
 
-        # Asignar como miembro
+        # Asignar miembro
         nuevo_miembro = MiembroProyecto(
             id_proyecto=nuevo_proyecto.id_proyecto,
             id_usuario=nuevo_usuario.id_usuario,
@@ -141,3 +152,26 @@ if __name__ == "__main__":
 
     finally:
         db.close()
+
+
+def login_usuario(db, nombre_usuario, contraseña_ingresada):
+    usuario = db.query(Usuario).filter(Usuario.nombre_usuario == nombre_usuario).first()
+    if usuario and verificar_contraseña(usuario, contraseña_ingresada):
+        print("Inicio de sesión exitoso")
+        return usuario
+    else:
+        print("Nombre de usuario o contraseña incorrectos")
+        return None
+
+
+# ------------------ EJECUCIÓN PRINCIPAL ------------------
+
+if __name__ == "__main__":
+    prueba_insercion()
+
+    db = SessionLocal()
+    usuario_logeado = login_usuario(db, "juan.perez", "miclave123")
+    if usuario_logeado:
+        print(f"Bienvenido {usuario_logeado.nombre_usuario}")
+    db.close()
+
