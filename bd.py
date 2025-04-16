@@ -1,6 +1,7 @@
 import bcrypt
 from sqlalchemy import create_engine, Column, Integer, String, Date, ForeignKey
-from sqlalchemy.orm import sessionmaker, relationship, declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import datetime
 
@@ -28,7 +29,7 @@ class Proyecto(Base):
     nombre = Column(String(100), nullable=False)
     fecha_inicio = Column(Date, nullable=False)
     fecha_fin = Column(Date)
-    usuario_id = Column(Integer, ForeignKey('usuarios.id_usuario', ondelete='CASCADE'), nullable=False)
+    usuario_id = Column(Integer, ForeignKey('usuarios.id_usuario'))
 
     usuario = relationship('Usuario', backref='proyectos')
 
@@ -40,12 +41,12 @@ class Tarea(Base):
     __tablename__ = 'tareas'
 
     id_tarea = Column(Integer, primary_key=True, autoincrement=True)
-    id_proyecto = Column(Integer, ForeignKey('proyectos.id_proyecto', ondelete='CASCADE'), nullable=False)
+    id_proyecto = Column(Integer, ForeignKey('proyectos.id_proyecto'), nullable=False)
     descripcion = Column(String(255), nullable=False)
     fecha_vencimiento = Column(Date)
-    id_usuario_asignado = Column(Integer, ForeignKey('usuarios.id_usuario', ondelete='SET NULL'))
+    id_usuario_asignado = Column(Integer, ForeignKey('usuarios.id_usuario'))
     estado = Column(String(20), nullable=False, default='pendiente')  # 'pendiente', 'en progreso', 'completada'
-    prioridad = Column(String(10), nullable=False, default='media')   # 'baja', 'media', 'alta'
+    prioridad = Column(String(10), nullable=False, default='media')  # 'baja', 'media', 'alta'
 
     def __repr__(self):
         return f"<Tarea(descripcion='{self.descripcion}', estado='{self.estado}', prioridad='{self.prioridad}')>"
@@ -54,9 +55,9 @@ class Tarea(Base):
 class MiembroProyecto(Base):
     __tablename__ = 'miembros_proyecto'
 
-    id_proyecto = Column(Integer, ForeignKey('proyectos.id_proyecto', ondelete='CASCADE'), primary_key=True)
-    id_usuario = Column(Integer, ForeignKey('usuarios.id_usuario', ondelete='CASCADE'), primary_key=True)
-    rol = Column(String(20), nullable=False, default='colaborador')
+    id_proyecto = Column(Integer, ForeignKey('proyectos.id_proyecto'), primary_key=True)
+    id_usuario = Column(Integer, ForeignKey('usuarios.id_usuario'), primary_key=True)
+    rol = Column(String(20), nullable=False, default='colaborador')  # puede ser 'colaborador', 'responsable', etc.
 
     def __repr__(self):
         return f"<MiembroProyecto(id_proyecto={self.id_proyecto}, id_usuario={self.id_usuario}, rol='{self.rol}')>"
@@ -76,6 +77,12 @@ Base.metadata.create_all(engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # ------------------ FUNCIONES ------------------
 

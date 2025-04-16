@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from backadmin import obtener_proyectos_y_tareas, crear_proyecto, crear_tarea
 from bd import Usuario, SessionLocal
+from bd import Usuario, SessionLocal  # Asegúrate de que la ruta sea correcta
 import bcrypt
 
 # Colores
@@ -14,12 +15,12 @@ COLOR_TEXTO = "#ffffff"
 # Función para cargar datos
 def cargar_datos(usuario):
     proyectos, tareas = obtener_proyectos_y_tareas(usuario.id_usuario)
-
+    # Limpiar vistas previas
     for item in tree_proyectos.get_children():
         tree_proyectos.delete(item)
     for item in tree_tareas.get_children():
         tree_tareas.delete(item)
-
+    # Insertar datos en las tablas
     for proyecto in proyectos:
         tree_proyectos.insert("", "end", values=(proyecto.id_proyecto, proyecto.nombre, proyecto.fecha_inicio, proyecto.fecha_fin))
     for tarea in tareas:
@@ -66,6 +67,7 @@ def crear_proyecto_window(usuario):
             if proyecto:
                 messagebox.showinfo("Éxito", "¡Proyecto creado exitosamente!")
                 create_window.destroy()
+                create_window.destroy()  # Cierra la ventana de crear proyecto
                 cargar_datos(usuario)
             else:
                 messagebox.showerror("Error", "Hubo un problema al crear el proyecto.")
@@ -74,6 +76,7 @@ def crear_proyecto_window(usuario):
 
     create_window = tk.Toplevel(root)
     create_window.title("Crear Proyecto")
+
 
     tk.Label(create_window, text="Nombre del Proyecto:").pack(pady=5)
     entry_nombre = tk.Entry(create_window)
@@ -88,6 +91,25 @@ def crear_proyecto_window(usuario):
     entry_fecha_fin.pack(pady=5)
 
     tk.Button(create_window, text="Guardar Proyecto", command=guardar_proyecto).pack(pady=10)
+
+    label_nombre = tk.Label(create_window, text="Nombre del Proyecto:")
+    label_nombre.pack(pady=5)
+    entry_nombre = tk.Entry(create_window)
+    entry_nombre.pack(pady=5)
+
+    label_fecha_inicio = tk.Label(create_window, text="Fecha de Inicio (YYYY-MM-DD):")
+    label_fecha_inicio.pack(pady=5)
+    entry_fecha_inicio = tk.Entry(create_window)
+    entry_fecha_inicio.pack(pady=5)
+
+    label_fecha_fin = tk.Label(create_window, text="Fecha de Fin:")
+    label_fecha_fin.pack(pady=5)
+    entry_fecha_fin = tk.Entry(create_window)
+    entry_fecha_fin.pack(pady=5)
+
+    button_guardar = tk.Button(create_window, text="Guardar Proyecto", command=guardar_proyecto)
+    button_guardar.pack(pady=10)
+
 
 # Crear una nueva tarea
 def crear_tarea_window(usuario):
@@ -105,6 +127,10 @@ def crear_tarea_window(usuario):
             if tarea:
                 messagebox.showinfo("Éxito", "¡Tarea creada exitosamente!")
                 create_window.destroy()
+            tarea = crear_tarea(1, descripcion, fecha_vencimiento)  # id_proyecto = 1
+            if tarea:
+                messagebox.showinfo("Éxito", "¡Tarea creada exitosamente!")
+                create_window.destroy()  # Cierra la ventana de crear tarea
                 cargar_datos(usuario)
             else:
                 messagebox.showerror("Error", "Hubo un problema al crear la tarea.")
@@ -123,3 +149,16 @@ def crear_tarea_window(usuario):
     entry_fecha_vencimiento.pack(pady=5)
 
     tk.Button(create_window, text="Guardar Tarea", command=guardar_tarea).pack(pady=10)
+
+    label_descripcion = tk.Label(create_window, text="Descripción de la Tarea:")
+    label_descripcion.pack(pady=5)
+    entry_descripcion = tk.Entry(create_window)
+    entry_descripcion.pack(pady=5)
+
+    label_fecha_vencimiento = tk.Label(create_window, text="Fecha de Vencimiento (YYYY-MM-DD):")
+    label_fecha_vencimiento.pack(pady=5)
+    entry_fecha_vencimiento = tk.Entry(create_window)
+    entry_fecha_vencimiento.pack(pady=5)
+
+    button_guardar = tk.Button(create_window, text="Guardar Tarea", command=guardar_tarea)
+    button_guardar.pack(pady=10)

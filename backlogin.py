@@ -3,10 +3,9 @@ import bcrypt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
-from bd import Usuario  # Asegúrate que 'bd.py' tenga el modelo Usuario definido correctamente
+from bd import Usuario  # Asegúrate de que 'bd.py' tenga el modelo Usuario correctamente definido
 
-
-# --- Configuración de conexión ---
+# --- Configuración de la base de datos ---
 DB_HOST = 'localhost'
 DB_NAME = 'gestion_proyectos_db'
 DB_USER = 'root'
@@ -15,14 +14,14 @@ DB_PASSWORD = ''
 DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
 # Motor y sesión
-engine = create_engine(DATABASE_URL, echo=False)  # echo=True para ver SQL en consola (útil para debug)
+engine = create_engine(DATABASE_URL, echo=False)  # Cambia a 'echo=True' para ver las consultas SQL (útil para depurar)
 SessionLocal = sessionmaker(bind=engine)
 
-
-# --- Función para verificar inicio de sesión ---
-def verificar_login(username: str, password: str):
+# --- Función para verificar el inicio de sesión ---
+def verificar_login(username, password):
     db = SessionLocal()
     try:
+        # Verificar si el usuario existe
         usuario = db.query(Usuario).filter(Usuario.nombre_usuario == username).first()
         if usuario and bcrypt.checkpw(password.encode('utf-8'), usuario.contraseña.encode('utf-8')):
             return usuario
@@ -33,58 +32,56 @@ def verificar_login(username: str, password: str):
     finally:
         db.close()
 
-
 # --- Función para crear un nuevo usuario ---
-def crear_usuario(username: str, password: str, rol: str, correo_electronico: str, creador_admin=False):
+def crear_usuario(username, password, rol, correo_electronico, creador_admin=False):
     db = SessionLocal()
     try:
-        # Validación: Usuario existente
+        # Validar si el nombre de usuario ya existe
         if db.query(Usuario).filter(Usuario.nombre_usuario == username).first():
             return "El nombre de usuario ya está en uso."
 
-        # Restricción para crear administradores
+        # Validar permisos para crear administradores
         if rol == "administrador" and not creador_admin:
             return "No tienes permiso para crear un usuario administrador."
 
-        # Encriptar contraseña
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        # Encriptar la contraseña
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
-        # Crear y guardar nuevo usuario
-        nuevo_usuario = Usuario(
+        # Crear nuevo usuario
+        new_user = Usuario(
             nombre_usuario=username,
-            contraseña=hashed_password,
+            contraseña=hashed_password.decode('utf-8'),  # Decodificar antes de guardar en la base de datos
             rol=rol,
             correo_electronico=correo_electronico
         )
 
-        db.add(nuevo_usuario)
-        db.commit()
+        db.add(new_user)  # Agregar el nuevo usuario a la sesión
+        db.commit()  # Confirmar cambios en la base de datos
         return "¡Usuario creado exitosamente!"
-
     except SQLAlchemyError as e:
-        db.rollback()
-        messagebox.showerror("Error de Base de Datos", f"No se pudo crear el usuario:\n{e}")
-        return "Error al crear usuario."
+        db.rollback()  # Si hay un error, revertir los cambios
+        messagebox.showerror("Error de Base de Datos", f"Hubo un problema al crear el usuario en la base de datos:\n{e}")
+        return f"Error al crear usuario: {e}"
     finally:
         db.close()
 
-
-# --- Función para cambiar la contraseña ---
-def cambiar_contraseña(username: str, new_password: str):
+# --- Función para cambiar la contraseña de un usuario ---
+def cambiar_contraseña(username, new_password):
     db = SessionLocal()
     try:
+        # Buscar al usuario en la base de datos
         usuario = db.query(Usuario).filter(Usuario.nombre_usuario == username).first()
-        if not usuario:
+        if usuario:
+            # Encriptar la nueva contraseña
+            hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+            usuario.contraseña = hashed_password.decode('utf-8')  # Guardar la contraseña encriptada
+            db.commit()  # Confirmar cambios en la base de datos
+            return "¡Contraseña actualizada exitosamente!"
+        else:
             return "Usuario no encontrado."
-
-        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        usuario.contraseña = hashed_password
-        db.commit()
-        return "¡Contraseña actualizada!"
-
     except SQLAlchemyError as e:
-        db.rollback()
-        messagebox.showerror("Error de Base de Datos", f"No se pudo actualizar la contraseña:\n{e}")
-        return "Error al cambiar contraseña."
+        db.rollback()  # Revertir cambios en caso de error
+        messagebox.showerror("Error de Base de Datos", f"Hubo un problema al actualizar la contraseña en la base de datos:\n{e}")
+        return f"Error al cambiar contraseña: {e}"
     finally:
         db.close()
