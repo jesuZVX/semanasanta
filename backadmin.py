@@ -6,9 +6,7 @@ from datetime import datetime
 def obtener_proyectos_y_tareas(usuario_id):
     db = SessionLocal()
     try:
-        # Obtiene proyectos asociados al usuario
-        proyectos = db.query(Proyecto).filter(Proyecto.usuario_id == usuario_id).all()
-        # Obtiene tareas asociadas al usuario
+        proyectos = db.query(Proyecto).all()  # Si quieres filtrar por usuario, cambia esto
         tareas = db.query(Tarea).filter(Tarea.id_usuario_asignado == usuario_id).all()
         return proyectos, tareas
     except Exception as e:
@@ -22,8 +20,7 @@ def crear_proyecto(nombre, fecha_inicio, fecha_fin=None):
     db = SessionLocal()
     try:
         fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
-        if fecha_fin:
-            fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+        fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d") if fecha_fin else None
         nuevo_proyecto = Proyecto(nombre=nombre, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
         db.add(nuevo_proyecto)
         db.commit()
